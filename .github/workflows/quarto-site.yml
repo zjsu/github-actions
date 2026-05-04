@@ -62,16 +62,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Cache fonts
-        if: inputs.install_chinese_fonts
-        uses: actions/cache@v4
-        id: cache-fonts
-        with:
-          path: ~/.cache/fontconfig
-          key: fonts-noto-cjk-${{ runner.os }}
-
       - name: Install Chinese Fonts
-        if: inputs.install_chinese_fonts && steps.cache-fonts.outputs.cache-hit != 'true'
+        if: inputs.install_chinese_fonts
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends fonts-noto-cjk fonts-noto-cjk-extra
@@ -82,8 +74,16 @@ jobs:
         with:
           version: ${{ inputs.quarto_version }}
 
-      - name: Install chrome-headless-shell
+      - name: Cache chrome-headless-shell
         if: inputs.install_chrome
+        uses: actions/cache@v4
+        id: cache-chrome
+        with:
+          path: ~/.local/share/quarto/tools
+          key: quarto-chrome-${{ runner.os }}-${{ inputs.quarto_version }}
+
+      - name: Install chrome-headless-shell
+        if: inputs.install_chrome && steps.cache-chrome.outputs.cache-hit != 'true'
         run: quarto install chrome-headless-shell --no-prompt
 
       - name: Render Quarto website
@@ -100,4 +100,4 @@ jobs:
           force_orphan: ${{ inputs.force_orphan }}
           commit_message: ${{ inputs.commit_message }}
           user_name: github-actions[bot]
-          user_email: github-actions[bot]@users.noreply.github.com
+          user_email: 41898282+github-actions[bot]@users.noreply.github.com
