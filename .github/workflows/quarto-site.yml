@@ -1,0 +1,103 @@
+name: Reusable Quarto Site Deploy
+
+on:
+  workflow_call:
+    inputs:
+      quarto_version:
+        required: false
+        type: string
+        default: "release"
+
+      install_chinese_fonts:
+        required: false
+        type: boolean
+        default: true
+
+      install_chrome:
+        required: false
+        type: boolean
+        default: true
+
+      render_path:
+        required: false
+        type: string
+        default: "."
+
+      publish_dir:
+        required: false
+        type: string
+        default: "./_site"
+
+      publish_branch:
+        required: false
+        type: string
+        default: "site"
+
+      force_orphan:
+        required: false
+        type: boolean
+        default: true
+
+      commit_message:
+        required: false
+        type: string
+        default: "deploy: update site"
+
+      timeout_minutes:
+        required: false
+        type: number
+        default: 10
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache fonts
+        if: inputs.install_chinese_fonts
+        uses: actions/cache@v4
+        id: cache-fonts
+        with:
+          path: ~/.cache/fontconfig
+          key: fonts-noto-cjk-${{ runner.os }}
+
+      - name: Install Chinese Fonts
+        if: inputs.install_chinese_fonts && steps.cache-fonts.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk fonts-noto-cjk-extra
+          fc-cache -fv
+
+      - name: Setup Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: ${{ inputs.quarto_version }}
+
+      - name: Install chrome-headless-shell
+        if: inputs.install_chrome
+        run: quarto install chrome-headless-shell --no-prompt
+
+      - name: Render Quarto website
+        uses: quarto-dev/quarto-actions/render@v2
+        with:
+          path: ${{ inputs.render_path }}
+
+      - name: Deploy to site branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ github.token }}
+          publish_dir: ${{ inputs.publish_dir }}
+          publish_branch: ${{ inputs.publish_branch }}
+          force_orphan: ${{ inputs.force_orphan }}
+          commit_message: ${{ inputs.commit_message }}
+          user_name: github-actions[bot]
+          user_email: github-actions[bot]@users.noreply.github.com
